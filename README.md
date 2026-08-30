@@ -65,5 +65,3 @@ app/build/outputs/apk/debug/app-debug.apk
 ## Versão
 
 **v1.0.0**
-
-Projeto feito para estudo e portfólio.
