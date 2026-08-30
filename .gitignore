@@ -1,0 +1,51 @@
+# Android / Gradle
+.gradle/
+.kotlin/
+**/build/
+build/
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# APK / Bundle / artefatos
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Assinatura e arquivos privados
+*.jks
+*.keystore
+keystore.properties
+secrets.properties
+google-services.json
+
+# Sistema / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Logs e temporários
+*.log
+*.tmp
+*.temp
+*.bak
+*.orig
+erros-log.txt
+
+# Backups usados durante desenvolvimento
+.backup-*/
+.backup-*
+setup-backup-*/
+
+# Saídas de etapas/scripts
+etapa*-resultado*.txt
+*-resultado.txt
+*-resultado-*.txt
