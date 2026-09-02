@@ -71,11 +71,14 @@ object TypoSuggestionEngine {
     fun request(
         context: Context,
         text: String,
+        precomputedLocal:
+            List<TypoSuggestion>? = null,
         onResult:
             (List<TypoSuggestion>) -> Unit
     ): SpellCheckerSession? {
         val local =
-            localSuggestions(text)
+            precomputedLocal
+                ?: localSuggestions(text)
 
         val manager =
             context.getSystemService(
@@ -255,6 +258,11 @@ object TypoSuggestionEngine {
             )
         }
     }
+
+    fun computeLocalSuggestions(
+        text: String
+    ): List<TypoSuggestion> =
+        localSuggestions(text)
 
     private fun localSuggestions(
         text: String

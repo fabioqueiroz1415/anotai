@@ -28,9 +28,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -55,6 +58,9 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.lazy.itemsIndexed
 
 class MainActivity : ComponentActivity() {
@@ -131,7 +137,13 @@ private fun AnotaiApp(
     }
 
     var tasks by remember {
-        mutableStateOf(repository.all())
+        mutableStateOf<List<TaskRecord>>(emptyList())
+    }
+
+    val scope = rememberCoroutineScope()
+
+    var backgroundOperationRunning by remember {
+        mutableStateOf(false)
     }
 
     var selectedTaskId by remember {
@@ -150,12 +162,26 @@ private fun AnotaiApp(
         mutableStateOf(Screen.CALENDAR)
     }
 
+    suspend fun refreshNow() {
+        tasks = withContext(Dispatchers.IO) {
+            repository.all()
+        }
+    }
+
     fun refresh() {
-        tasks = repository.all()
+        scope.launch {
+            refreshNow()
+        }
     }
 
     fun selectedTask(): TaskRecord? =
-        selectedTaskId?.let(repository::get)
+        selectedTaskId?.let { id ->
+            tasks.firstOrNull { it.id == id }
+        }
+
+    LaunchedEffect(repository) {
+        refreshNow()
+    }
 
     BackHandler {
         when (screen) {
@@ -267,47 +293,72 @@ private fun AnotaiApp(
                         false
                 },
                 onConfirmReminder = {
-                    if (input.isNotBlank()) {
-                        try {
-                            val parsed =
-                                parser.parse(input)
+                    val textToSave = input
 
-                            if (
-                                parsed.date == null ||
-                                parsed.time == null
-                            ) {
+                    if (
+                        textToSave.isNotBlank() &&
+                        !backgroundOperationRunning
+                    ) {
+                        backgroundOperationRunning = true
+                        status = "Salvando tarefa..."
+
+                        scope.launch {
+                            try {
+                                val parsed =
+                                    withContext(AnotaiDispatchers.parser) {
+                                        parser.parse(textToSave)
+                                    }
+
+                                if (
+                                    parsed.date == null ||
+                                    parsed.time == null
+                                ) {
+                                    status =
+                                        "Informe data e horário para confirmar."
+                                } else {
+                                    val updatedTasks =
+                                        withContext(Dispatchers.IO) {
+                                            errorLog
+                                                .recordInterpretationProblem(
+                                                    parsed
+                                                )
+
+                                            val id =
+                                                repository.save(
+                                                    parsed
+                                                )
+
+                                            scheduler.scheduleNext(
+                                                id
+                                            )
+
+                                            repository.all()
+                                        }
+
+                                    tasks = updatedTasks
+
+                                    if (input == textToSave) {
+                                        input = ""
+                                    }
+
+                                    draft = null
+                                    status =
+                                        "Tarefa salva. Notificação e alerta foram programados."
+                                }
+                            } catch (t: Throwable) {
+                                withContext(Dispatchers.IO) {
+                                    errorLog
+                                        .recordException(
+                                            textToSave,
+                                            t
+                                        )
+                                }
+
                                 status =
-                                    "Informe data e horário para confirmar."
-                            } else {
-                                errorLog
-                                    .recordInterpretationProblem(
-                                        parsed
-                                    )
-
-                                val id =
-                                    repository.save(
-                                        parsed
-                                    )
-
-                                scheduler.scheduleNext(
-                                    id
-                                )
-
-                                refresh()
-                                input = ""
-                                draft = null
-                                status =
-                                    "Tarefa salva. Notificação e alerta foram programados."
+                                    "Não consegui salvar esta tarefa. O erro foi registrado."
+                            } finally {
+                                backgroundOperationRunning = false
                             }
-                        } catch (t: Throwable) {
-                            errorLog
-                                .recordException(
-                                    input,
-                                    t
-                                )
-
-                            status =
-                                "Não consegui salvar esta tarefa. O erro foi registrado."
                         }
                     }
                 },
@@ -375,14 +426,46 @@ private fun AnotaiApp(
                         screen = Screen.INPUT
                     },
                     onConfirm = {
-                        val id = repository.save(current)
-                        scheduler.scheduleNext(id)
-                        refresh()
-                        input = ""
-                        draft = null
-                        status =
-                            "Tarefa salva. Notificação e alerta foram programados."
-                        screen = Screen.INPUT
+                        if (!backgroundOperationRunning) {
+                            backgroundOperationRunning = true
+                            status = "Salvando tarefa..."
+
+                            scope.launch {
+                                try {
+                                    tasks =
+                                        withContext(Dispatchers.IO) {
+                                            val id =
+                                                repository.save(
+                                                    current
+                                                )
+
+                                            scheduler.scheduleNext(
+                                                id
+                                            )
+
+                                            repository.all()
+                                        }
+
+                                    input = ""
+                                    draft = null
+                                    status =
+                                        "Tarefa salva. Notificação e alerta foram programados."
+                                    screen = Screen.INPUT
+                                } catch (t: Throwable) {
+                                    withContext(Dispatchers.IO) {
+                                        errorLog.recordException(
+                                            current.originalText,
+                                            t
+                                        )
+                                    }
+
+                                    status =
+                                        "Não consegui salvar esta tarefa. O erro foi registrado."
+                                } finally {
+                                    backgroundOperationRunning = false
+                                }
+                            }
+                        }
                     }
                 )
             }
@@ -483,17 +566,53 @@ private fun AnotaiApp(
                         screen = Screen.DETAIL
                     },
                     onConfirm = {
-                        if (repository.update(id, current)) {
-                            scheduler.replace(id)
-                            refresh()
-                            draft = null
-                            status =
-                                "Tarefa atualizada e avisos reagendados."
-                            screen = Screen.DETAIL
-                        } else {
-                            status =
-                                "Não consegui atualizar a tarefa."
-                            screen = Screen.DETAIL
+                        if (!backgroundOperationRunning) {
+                            backgroundOperationRunning = true
+                            status = "Atualizando tarefa..."
+
+                            scope.launch {
+                                try {
+                                    val result =
+                                        withContext(Dispatchers.IO) {
+                                            val updated =
+                                                repository.update(
+                                                    id,
+                                                    current
+                                                )
+
+                                            if (updated) {
+                                                scheduler.replace(id)
+                                            }
+
+                                            updated to repository.all()
+                                        }
+
+                                    tasks = result.second
+                                    draft = null
+
+                                    status =
+                                        if (result.first) {
+                                            "Tarefa atualizada e avisos reagendados."
+                                        } else {
+                                            "Não consegui atualizar a tarefa."
+                                        }
+
+                                    screen = Screen.DETAIL
+                                } catch (t: Throwable) {
+                                    withContext(Dispatchers.IO) {
+                                        errorLog.recordException(
+                                            current.originalText,
+                                            t
+                                        )
+                                    }
+
+                                    status =
+                                        "Não consegui atualizar a tarefa. O erro foi registrado."
+                                    screen = Screen.DETAIL
+                                } finally {
+                                    backgroundOperationRunning = false
+                                }
+                            }
                         }
                     }
                 )
@@ -512,14 +631,43 @@ private fun AnotaiApp(
                         screen = Screen.DETAIL
                     },
                     onDelete = {
-                        scheduler.cancel(task.id)
-                        repository.delete(task.id)
-                        selectedTaskId = null
-                        draft = null
-                        refresh()
-                        status =
-                            "Tarefa excluída e avisos cancelados."
-                        screen = Screen.INPUT
+                        if (!backgroundOperationRunning) {
+                            backgroundOperationRunning = true
+                            status = "Excluindo tarefa..."
+
+                            scope.launch {
+                                try {
+                                    tasks =
+                                        withContext(Dispatchers.IO) {
+                                            scheduler.cancel(
+                                                task.id
+                                            )
+                                            repository.delete(
+                                                task.id
+                                            )
+                                            repository.all()
+                                        }
+
+                                    selectedTaskId = null
+                                    draft = null
+                                    status =
+                                        "Tarefa excluída e avisos cancelados."
+                                    screen = Screen.INPUT
+                                } catch (t: Throwable) {
+                                    withContext(Dispatchers.IO) {
+                                        errorLog.recordException(
+                                            task.originalText,
+                                            t
+                                        )
+                                    }
+
+                                    status =
+                                        "Não consegui excluir a tarefa. O erro foi registrado."
+                                } finally {
+                                    backgroundOperationRunning = false
+                                }
+                            }
+                        }
                     }
                 )
             }
@@ -928,100 +1076,134 @@ private fun CalendarScreen(
     }
 
     val monthTitle =
-        month.format(
-            DateTimeFormatter.ofPattern(
-                "MMMM 'de' yyyy"
+        remember(month) {
+            month.format(
+                DateTimeFormatter.ofPattern(
+                    "MMMM 'de' yyyy"
+                )
             )
-        )
-
-    val firstDay =
-        month.atDay(1)
-
-    val firstColumn =
-        firstDay.dayOfWeek.value - 1
-
-    val daysInMonth =
-        month.lengthOfMonth()
+        }
 
     val cells =
-        buildList<LocalDate?> {
-            repeat(firstColumn) {
-                add(null)
-            }
+        remember(month) {
+            val firstDay =
+                month.atDay(1)
 
-            for (day in 1..daysInMonth) {
-                add(month.atDay(day))
-            }
+            val firstColumn =
+                firstDay.dayOfWeek.value - 1
 
-            while (size % 7 != 0) {
-                add(null)
+            val daysInMonth =
+                month.lengthOfMonth()
+
+            buildList<LocalDate?> {
+                repeat(firstColumn) {
+                    add(null)
+                }
+
+                for (day in 1..daysInMonth) {
+                    add(month.atDay(day))
+                }
+
+                while (size % 7 != 0) {
+                    add(null)
+                }
             }
         }
 
-    val now =
-        java.time.LocalDateTime.now()
+    val weeks =
+        remember(cells) {
+            cells.chunked(7)
+        }
 
-    val selectedTasks =
-        tasks
-            .filter {
-                TaskOccurrenceCalculator
-                    .occursOn(
-                        it,
-                        selectedDate
-                    )
-            }
-            .sortedWith(
-                Comparator { a, b ->
-                    val aTime = a.time
-                    val bTime = b.time
+    // Calcula as ocorrências somente quando a lista de tarefas ou o mês muda.
+    // O cálculo pesado roda em Dispatchers.Default, então trocar de mês e
+    // digitar no compositor não bloqueiam a Main Thread.
+    val tasksByDate by
+        produceState<Map<LocalDate, List<TaskRecord>>>(
+            emptyMap(),
+            tasks,
+            month
+        ) {
+            val dates =
+                cells.filterNotNull()
 
-                    when {
-                        aTime == null &&
-                            bTime == null -> 0
-
-                        aTime == null -> 1
-
-                        bTime == null -> -1
-
-                        else -> {
-                            val aOccurrence =
-                                selectedDate.atTime(
-                                    aTime
+            value =
+                withContext(Dispatchers.Default) {
+                    dates.associateWith { date ->
+                        tasks.filter { task ->
+                            TaskOccurrenceCalculator
+                                .occursOn(
+                                    task,
+                                    date
                                 )
-
-                            val bOccurrence =
-                                selectedDate.atTime(
-                                    bTime
-                                )
-
-                            val aPassed =
-                                aOccurrence.isBefore(
-                                    now
-                                )
-
-                            val bPassed =
-                                bOccurrence.isBefore(
-                                    now
-                                )
-
-                            when {
-                                aPassed != bPassed ->
-                                    if (aPassed) 1 else -1
-
-                                !aPassed ->
-                                    aOccurrence.compareTo(
-                                        bOccurrence
-                                    )
-
-                                else ->
-                                    bOccurrence.compareTo(
-                                        aOccurrence
-                                    )
-                            }
                         }
                     }
                 }
-            )
+        }
+
+    val selectedTasks =
+        remember(
+            tasksByDate,
+            selectedDate
+        ) {
+            val now =
+                java.time.LocalDateTime.now()
+
+            tasksByDate[selectedDate]
+                .orEmpty()
+                .sortedWith(
+                    Comparator { a, b ->
+                        val aTime = a.time
+                        val bTime = b.time
+
+                        when {
+                            aTime == null &&
+                                bTime == null -> 0
+
+                            aTime == null -> 1
+
+                            bTime == null -> -1
+
+                            else -> {
+                                val aOccurrence =
+                                    selectedDate.atTime(
+                                        aTime
+                                    )
+
+                                val bOccurrence =
+                                    selectedDate.atTime(
+                                        bTime
+                                    )
+
+                                val aPassed =
+                                    aOccurrence.isBefore(
+                                        now
+                                    )
+
+                                val bPassed =
+                                    bOccurrence.isBefore(
+                                        now
+                                    )
+
+                                when {
+                                    aPassed != bPassed ->
+                                        if (aPassed) 1 else -1
+
+                                    !aPassed ->
+                                        aOccurrence.compareTo(
+                                            bOccurrence
+                                        )
+
+                                    else ->
+                                        bOccurrence.compareTo(
+                                            aOccurrence
+                                        )
+                                }
+                            }
+                        }
+                    }
+                )
+        }
 
     androidx.compose.foundation.layout.Box(
         modifier =
@@ -1113,8 +1295,7 @@ private fun CalendarScreen(
             }
 
             items(
-                items =
-                    cells.chunked(7)
+                items = weeks
             ) { week ->
                 Row(
                     modifier =
@@ -1132,13 +1313,8 @@ private fun CalendarScreen(
                             )
                         } else {
                             val dayTasks =
-                                tasks.filter {
-                                    TaskOccurrenceCalculator
-                                        .occursOn(
-                                            it,
-                                            date
-                                        )
-                                }
+                                tasksByDate[date]
+                                    .orEmpty()
 
                             Card(
                                 onClick = {

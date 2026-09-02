@@ -404,16 +404,47 @@ private fun ReminderComposerScreen(
             TaskInterpreter()
         }
 
-    val draft =
-        remember(text) {
-            if (text.isBlank()) {
-                null
-            } else {
-                interpreter.parse(
-                    text,
-                    LocalDateTime.now()
-                )
-            }
+    var draft by remember {
+        mutableStateOf<TaskDraft?>(null)
+    }
+
+    var parsedText by remember {
+        mutableStateOf("")
+    }
+
+    // A digitação fica exclusivamente na Main Thread. A interpretação da
+    // mensagem usa a thread dedicada "AnotaiParser", com prioridade de
+    // background. O debounce impede iniciar uma análise para cada tecla.
+    // Quando o texto muda, o LaunchedEffect anterior é cancelado e um
+    // resultado antigo nunca substitui a prévia do texto atual.
+    androidx.compose.runtime.LaunchedEffect(text) {
+        if (text.isBlank()) {
+            draft = null
+            parsedText = ""
+        } else {
+            kotlinx.coroutines.delay(300L)
+
+            val textSnapshot = text
+            val parsed =
+                kotlinx.coroutines.withContext(
+                    AnotaiDispatchers.parser
+                ) {
+                    interpreter.parse(
+                        textSnapshot,
+                        LocalDateTime.now()
+                    )
+                }
+
+            // withContext volta para a Main Thread antes de alterar o estado
+            // do Compose.
+            draft = parsed
+            parsedText = textSnapshot
+        }
+    }
+
+    val currentDraft =
+        draft.takeIf {
+            parsedText == text
         }
 
     val focusRequester =
@@ -529,11 +560,11 @@ private fun ReminderComposerScreen(
 
         HorizontalDivider()
 
-        if (draft != null) {
-            LiveDraftSummary(draft)
+        if (currentDraft != null) {
+            LiveDraftSummary(currentDraft)
 
             ReminderSchedulePreview(
-                draft = draft
+                draft = currentDraft
             )
         }
 
@@ -554,8 +585,8 @@ private fun ReminderComposerScreen(
             Button(
                 onClick = onContinue,
                 enabled =
-                    draft?.date != null &&
-                        draft.time != null,
+                    currentDraft?.date != null &&
+                        currentDraft.time != null,
                 modifier =
                     Modifier.weight(1f)
             ) {
@@ -564,10 +595,10 @@ private fun ReminderComposerScreen(
         }
 
         if (
-            draft != null &&
+            currentDraft != null &&
             (
-                draft.date == null ||
-                draft.time == null
+                currentDraft.date == null ||
+                currentDraft.time == null
             )
         ) {
             Text(
