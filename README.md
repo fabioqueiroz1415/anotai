@@ -1,5 +1,7 @@
 # Anotaí
 
+baixe [aqui](https://github.com/fabioqueiroz1415/anotai/releases/download/v2.0.0/anotai-v2.0.0.apk) o apk.
+
 O **Anotaí** é um aplicativo Android para criar lembretes escrevendo de forma natural.
 
 Exemplo:
