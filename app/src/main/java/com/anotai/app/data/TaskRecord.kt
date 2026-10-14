@@ -15,5 +15,6 @@ data class TaskRecord(
     val weekdaysCsv: String,
     val monthDay: Int?,
     val untilDate: LocalDate?,
-    val notificationMinutesBefore: Int = 120
+    val notificationMinutesBefore: Int = 120,
+    val completed: Boolean = false
 )

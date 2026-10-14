@@ -24,11 +24,11 @@ class ReadMeActivity : ComponentActivity() {
         val content =
             runCatching {
                 assets
-                    .open("LEIA-ME.md")
+                    .open("AJUDA.md")
                     .bufferedReader()
                     .use { it.readText() }
             }.getOrElse {
-                "Não foi possível abrir o LEIA-ME."
+                "Não foi possível abrir a ajuda."
             }
 
         setContent {
@@ -60,7 +60,7 @@ private fun ReadMeContent(
     ) {
         item {
             Text(
-                "LEIA-ME",
+                "Ajuda e sobre o Anotaí",
                 style =
                     MaterialTheme.typography.headlineMedium
             )
@@ -79,7 +79,7 @@ private fun ReadMeContent(
                 onClick = onBack,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("VOLTAR")
+                Text("Voltar")
             }
         }
     }

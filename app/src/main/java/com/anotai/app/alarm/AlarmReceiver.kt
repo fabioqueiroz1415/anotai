@@ -51,6 +51,11 @@ class AlarmReceiver :
         val task =
             TaskRepository(context).get(taskId) ?: return
 
+        if (task.completed) {
+            AlarmScheduler(context).cancel(taskId)
+            return
+        }
+
         createChannels(context)
 
         val notificationAllowed =
@@ -309,8 +314,8 @@ class AlarmReceiver :
             .setVibrate(
                 longArrayOf(0L, 450L, 180L, 450L)
             )
-            .addAction(0, "CANCELAR ALERTA", cancelPi)
-            .addAction(0, "DISPENSAR", dismissPi)
+            .addAction(0, "Cancelar alerta", cancelPi)
+            .addAction(0, "Dispensar", dismissPi)
             .setStyle(
                 NotificationCompat.BigTextStyle()
                     .bigText(originalText)

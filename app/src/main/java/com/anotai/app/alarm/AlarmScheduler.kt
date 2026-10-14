@@ -29,6 +29,11 @@ class AlarmScheduler(
     ) {
         val task = repository.get(taskId) ?: return
 
+        if (task.completed) {
+            cancel(taskId)
+            return
+        }
+
         scheduleNotificationKind(task, now)
         schedulePreAlertKind(task, now)
         scheduleAlertKind(task, now)
@@ -40,6 +45,11 @@ class AlarmScheduler(
         now: ZonedDateTime = ZonedDateTime.now()
     ) {
         val task = repository.get(taskId) ?: return
+
+        if (task.completed) {
+            cancel(taskId)
+            return
+        }
 
         when (kind) {
             AlarmReceiver.KIND_NOTIFICATION ->
@@ -61,6 +71,11 @@ class AlarmScheduler(
         now: ZonedDateTime = ZonedDateTime.now()
     ) {
         val task = repository.get(taskId) ?: return
+
+        if (task.completed) {
+            cancel(taskId)
+            return
+        }
 
         val firedEventAt =
             eventAtMillis
@@ -140,9 +155,11 @@ class AlarmScheduler(
     fun rescheduleAll() {
         val now = ZonedDateTime.now()
 
-        repository.all().forEach { task ->
-            scheduleNext(task.id, now)
-        }
+        repository.all()
+            .filterNot { it.completed }
+            .forEach { task ->
+                scheduleNext(task.id, now)
+            }
     }
 
     private fun scheduleNotificationKind(

@@ -133,7 +133,7 @@ class TestAlertActivity :
                                 Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                "PARAR TESTE"
+                                "Parar teste"
                             )
                         }
                     }

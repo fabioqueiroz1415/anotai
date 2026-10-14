@@ -37,6 +37,8 @@ object NextOccurrenceCalculator {
         now: ZonedDateTime,
         minutesBefore: Int
     ): ZonedDateTime? {
+        if (task.completed) return null
+
         val startDate =
             task.date ?: return null
 

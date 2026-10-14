@@ -1,7 +1,5 @@
 # Anotaí
 
-baixe [aqui](https://github.com/fabioqueiroz1415/anotai/releases/download/v2.0.0/anotai-v2.0.0.apk) o apk.
-
 O **Anotaí** é um aplicativo Android para criar lembretes escrevendo de forma natural.
 
 Exemplo:
@@ -12,12 +10,16 @@ O aplicativo interpreta a data, o horário e a antecedência do alerta. Antes de
 
 ## Recursos
 
-- criação de tarefas em texto natural;
-- calendário de tarefas;
-- notificações e alertas;
+- criação de tarefas em texto natural com prévia da interpretação;
+- calendário moderno com navegação por gesto entre meses;
+- seletor de mês/ano, atalho para hoje e indicadores de tarefas por dia;
+- notificações, pré-alertas e alertas fortes;
 - tarefas recorrentes;
-- edição e exclusão;
-- confirmação antes de salvar.
+- estados de tarefa: próxima, concluída e passada;
+- gestos para concluir/reabrir e excluir com opção de desfazer;
+- edição completa em Bottom Sheet;
+- tema claro, escuro, sistema e Material You;
+- configurações com permissões, diagnóstico e ferramentas técnicas.
 
 ## Instalar o APK normalmente
 

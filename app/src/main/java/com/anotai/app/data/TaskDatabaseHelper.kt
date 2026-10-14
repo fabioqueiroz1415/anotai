@@ -11,7 +11,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 
 class TaskDatabaseHelper(context: Context) :
-    SQLiteOpenHelper(context, "anotai.db", null, 2) {
+    SQLiteOpenHelper(context, "anotai.db", null, 3) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -28,6 +28,7 @@ class TaskDatabaseHelper(context: Context) :
                 weekdays_csv TEXT NOT NULL,
                 month_day INTEGER,
                 until_iso TEXT,
+                completed INTEGER NOT NULL DEFAULT 0,
                 created_at INTEGER NOT NULL
             )
             """.trimIndent()
@@ -45,6 +46,12 @@ class TaskDatabaseHelper(context: Context) :
             )
             db.execSQL(
                 "UPDATE tasks SET reminder_minutes = 60 WHERE reminder_minutes = 0"
+            )
+        }
+
+        if (oldVersion < 3) {
+            db.execSQL(
+                "ALTER TABLE tasks ADD COLUMN completed INTEGER NOT NULL DEFAULT 0"
             )
         }
     }
@@ -78,6 +85,41 @@ class TaskDatabaseHelper(context: Context) :
             "id = ?",
             arrayOf(id.toString())
         ) > 0
+
+    fun setCompleted(id: Long, completed: Boolean): Boolean =
+        writableDatabase.update(
+            "tasks",
+            ContentValues().apply {
+                put("completed", if (completed) 1 else 0)
+            },
+            "id = ?",
+            arrayOf(id.toString())
+        ) > 0
+
+    fun restore(task: TaskRecord): Boolean {
+        val values = ContentValues().apply {
+            put("id", task.id)
+            put("title", task.title)
+            put("original_text", task.originalText)
+            put("date_iso", task.date?.toString())
+            put("time_iso", task.time?.toString())
+            put("reminder_minutes", task.reminderMinutesBefore)
+            put("notification_minutes", task.notificationMinutesBefore)
+            put("recurrence_type", task.recurrenceType.name)
+            put("weekdays_csv", task.weekdaysCsv)
+            task.monthDay?.let { put("month_day", it) } ?: putNull("month_day")
+            put("until_iso", task.untilDate?.toString())
+            put("completed", if (task.completed) 1 else 0)
+            put("created_at", System.currentTimeMillis())
+        }
+
+        return writableDatabase.insertWithOnConflict(
+            "tasks",
+            null,
+            values,
+            SQLiteDatabase.CONFLICT_REPLACE
+        ) != -1L
+    }
 
     fun all(): List<TaskRecord> {
         val items = mutableListOf<TaskRecord>()
@@ -217,7 +259,13 @@ class TaskDatabaseHelper(context: Context) :
                     c.getColumnIndexOrThrow(
                         "notification_minutes"
                     )
-                )
+                ),
+            completed =
+                c.getInt(
+                    c.getColumnIndexOrThrow(
+                        "completed"
+                    )
+                ) != 0
         )
     }
 }

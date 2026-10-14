@@ -17,6 +17,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.anotai.app.AnotaiTheme
 import com.anotai.app.data.TaskRepository
 
 class FullScreenAlertActivity :
@@ -65,8 +66,14 @@ class FullScreenAlertActivity :
                 null
             }
 
+        if (task?.completed == true) {
+            StrongAlertPlaybackService.stop(this)
+            finish()
+            return
+        }
+
         setContent {
-            MaterialTheme {
+            AnotaiTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize()
                 ) {
@@ -130,7 +137,7 @@ class FullScreenAlertActivity :
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("PARAR ALERTA")
+                            Text("Parar alerta")
                         }
                     }
                 }

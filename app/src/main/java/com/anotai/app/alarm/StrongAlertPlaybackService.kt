@@ -65,6 +65,11 @@ class StrongAlertPlaybackService :
                 null
             }
 
+        if (task?.completed == true) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         val notificationId =
             visibleNotificationId(
                 taskId,
@@ -391,7 +396,7 @@ class StrongAlertPlaybackService :
                 .setOngoing(true)
                 .setAutoCancel(false)
                 .setFullScreenIntent(fullScreenPi, true)
-                .addAction(0, "PARAR ALERTA", stopPi)
+                .addAction(0, "Parar alerta", stopPi)
                 .build()
         }
 

@@ -53,7 +53,7 @@ class PermissionsActivity :
         )
 
         setContent {
-            MaterialTheme {
+            AnotaiTheme {
                 PermissionReliabilityScreen(
                     refreshVersion =
                         refreshVersion,
@@ -211,7 +211,7 @@ class PermissionsActivity :
                     detailMissing =
                         "Falta permitir notificações",
                     button =
-                        "CONFIGURAR",
+                        "Configurar",
                     onClick =
                         onRequestNotification
                 )
@@ -227,7 +227,7 @@ class PermissionsActivity :
                     detailMissing =
                         "Necessário para tocar no horário correto",
                     button =
-                        "CONFIGURAR",
+                        "Configurar",
                     onClick =
                         onOpenExactAlarm
                 )
@@ -243,7 +243,7 @@ class PermissionsActivity :
                     detailMissing =
                         "Necessário para o alerta forte",
                     button =
-                        "CONFIGURAR",
+                        "Configurar",
                     onClick =
                         onOpenFullScreen
                 )
@@ -259,7 +259,7 @@ class PermissionsActivity :
                     detailMissing =
                         "Pode restringir funcionamento em segundo plano",
                     button =
-                        "ABRIR BATERIA",
+                        "Abrir bateria",
                     onClick =
                         onOpenBattery
                 )
@@ -284,7 +284,7 @@ class PermissionsActivity :
                         instruction =
                             "Selecione Sem restrições para Anotaí.",
                         button =
-                            "ABRIR BATERIA DO XIAOMI",
+                            "Abrir bateria do Xiaomi",
                         onClick =
                             onOpenXiaomiBattery
                     )
@@ -302,7 +302,7 @@ class PermissionsActivity :
                         onRefresh
                 ) {
                     Text(
-                        "VERIFICAR NOVAMENTE"
+                        "Verificar novamente"
                     )
                 }
 
@@ -314,7 +314,7 @@ class PermissionsActivity :
                         onBack
                 ) {
                     Text(
-                        "VOLTAR"
+                        "Voltar"
                     )
                 }
 

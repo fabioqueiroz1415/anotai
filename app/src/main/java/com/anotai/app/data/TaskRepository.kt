@@ -35,6 +35,17 @@ class TaskRepository(context: Context) {
     ): Boolean =
         db.delete(id)
 
+    fun setCompleted(
+        id: Long,
+        completed: Boolean
+    ): Boolean =
+        db.setCompleted(id, completed)
+
+    fun restore(
+        task: TaskRecord
+    ): Boolean =
+        db.restore(task)
+
     fun all(): List<TaskRecord> =
         db.all()
 
